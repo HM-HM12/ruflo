@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Cratemaster — a box-pushing puzzle game</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #171a23;
+    --panel-2: #1f2330;
+    --border: #2a2f3f;
+    --text: #e7e9ee;
+    --muted: #8b90a3;
+    --accent: #7c9cff;
+    --accent-2: #34d399;
+    --warn: #f59e0b;
+    --cell: 48px;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: radial-gradient(1200px 600px at 50% -10%, #1c2032 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 60px;
+    min-height: 100%;
+  }
+  h1 {
+    margin: 4px 0 2px;
+    font-size: 28px;
+    letter-spacing: 0.5px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .layout {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    max-width: 960px;
+    width: 100%;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .levels-panel {
+    width: 220px;
+    flex-shrink: 0;
+  }
+  .levels-panel h2, .side-panel h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+  #level-list {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .level-btn {
+    position: relative;
+    padding: 10px 0;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform 0.08s ease, border-color 0.15s ease;
+  }
+  .level-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .level-btn.active { border-color: var(--accent); background: #232a44; }
+  .level-btn.done::after {
+    content: "✓";
+    position: absolute;
+    top: -6px;
+    right: -4px;
+    background: var(--accent-2);
+    color: #0b1a12;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .game-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  .stats {
+    display: flex;
+    gap: 18px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .stats b { color: var(--text); font-variant-numeric: tabular-nums; }
+  #board {
+    display: grid;
+    gap: 2px;
+    background: #05060a;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px;
+    touch-action: none;
+  }
+  .cell {
+    width: var(--cell);
+    height: var(--cell);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(var(--cell) * 0.55);
+    position: relative;
+    background: transparent;
+  }
+  .cell.wall {
+    background: linear-gradient(155deg, #3a3f52, #262a37);
+    border: 1px solid #454b62;
+  }
+  .cell.floor { background: #12141c; }
+  .cell.target { background: #12141c; }
+  .cell.target::after {
+    content: "";
+    width: 34%;
+    height: 34%;
+    border-radius: 3px;
+    border: 2px solid var(--warn);
+    opacity: 0.85;
+  }
+  .cell .box {
+    position: absolute;
+    inset: 4px;
+    border-radius: 6px;
+    background: linear-gradient(155deg, #b3854b, #8a5d2e);
+    border: 2px solid #6b4620;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.06);
+  }
+  .cell .box.on-target {
+    background: linear-gradient(155deg, var(--accent-2), #1f9d73);
+    border-color: #0e6e4d;
+  }
+  .cell .player {
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #a9bcff, var(--accent));
+    box-shadow: 0 0 0 2px rgba(124,156,255,0.35);
+  }
+  .controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  button.action {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button.action:hover { border-color: var(--accent); }
+  button.action:disabled { opacity: 0.4; cursor: not-allowed; }
+  .dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 44px);
+    grid-template-rows: repeat(3, 44px);
+    gap: 4px;
+  }
+  .dpad button {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .dpad button:active { background: #2a3352; }
+  .side-panel {
+    width: 220px;
+    flex-shrink: 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .side-panel kbd {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(6,7,12,0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+  .overlay.show { display: flex; }
+  .win-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 32px;
+    text-align: center;
+    max-width: 320px;
+  }
+  .win-card h2 { margin: 0 0 6px; color: var(--accent-2); }
+  .win-card p { color: var(--muted); margin: 4px 0 18px; font-size: 14px; }
+  .win-card .row { display: flex; gap: 10px; justify-content: center; }
+  footer {
+    margin-top: 28px;
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+  }
+  @media (max-width: 600px) {
+    .levels-panel, .side-panel { width: 100%; }
+    #level-list { grid-template-columns: repeat(8, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<h1>Cratemaster</h1>
+<div class="subtitle">Push every crate onto its marker. Think ahead — crates can't be pulled back.</div>
+
+<div class="layout">
+
+  <div class="panel levels-panel">
+    <h2>Levels</h2>
+    <div id="level-list"></div>
+  </div>
+
+  <div class="panel game-panel">
+    <div class="stats">
+      <span>Moves: <b id="stat-moves">0</b></span>
+      <span>Pushes: <b id="stat-pushes">0</b></span>
+      <span>Best: <b id="stat-best">—</b></span>
+    </div>
+
+    <div id="board"></div>
+
+    <div class="controls">
+      <button class="action" id="btn-undo">Undo</button>
+      <button class="action" id="btn-restart">Restart</button>
+      <button class="action" id="btn-next">Next Level</button>
+    </div>
+
+    <div class="dpad">
+      <span></span><button data-dir="up">▲</button><span></span>
+      <button data-dir="left">◀</button><span></span><button data-dir="right">▶</button>
+      <span></span><button data-dir="down">▼</button><span></span>
+    </div>
+  </div>
+
+  <div class="panel side-panel">
+    <h2>How to play</h2>
+    <p>Move with <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>.</p>
+    <p><kbd>U</kbd> or <kbd>Z</kbd> to undo a move.</p>
+    <p><kbd>R</kbd> to restart the level.</p>
+    <p>Walk into a crate to push it one tile. You can only push, never pull, so plan your route before you commit.</p>
+    <p>Progress and best scores are saved in this browser.</p>
+  </div>
+
+</div>
+
+<div class="overlay" id="win-overlay">
+  <div class="win-card">
+    <h2>Level solved!</h2>
+    <p id="win-summary"></p>
+    <div class="row">
+      <button class="action" id="win-retry">Retry</button>
+      <button class="action" id="win-next">Next Level →</button>
+    </div>
+  </div>
+</div>
+
+<footer>Cratemaster — a tiny self-contained Sokoban-style puzzle, no build step required.</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const LEVELS = [
+    "#####\n#@$.#\n#####",
+    "#######\n#  .  #\n#  $  #\n#  @  #\n#     #\n#######",
+    "#########\n#       #\n#  ###  #\n#  #.#  #\n#  # #  #\n#  #$#  #\n#  #@#  #\n#  ###  #\n#########",
+    "#########\n#       #\n#  .$@$.#\n#       #\n#########",
+    "##########\n#        #\n#  ##### #\n#  #   # #\n#  # $ # #\n#  # @ # #\n#  ##.## #\n#        #\n##########",
+    "##########\n#        #\n#  .  .  #\n#  $  $  #\n#    @   #\n##########",
+    "###########\n#    #    #\n#  $ # $  #\n#  . # .  #\n#    @    #\n#    #    #\n###########",
+    "############\n#          #\n#  $  .    #\n#  # ##### #\n#  #     # #\n#  #  $  # #\n#  #  .  # #\n#  #  @  # #\n#  #######\n############"
+  ];
+
+  const STORAGE_KEY = "cratemaster-progress-v1";
+  const DIRS = {
+    up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0],
+    ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+    w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0]
+  };
+
+  const boardEl = document.getElementById("board");
+  const levelListEl = document.getElementById("level-list");
+  const statMoves = document.getElementById("stat-moves");
+  const statPushes = document.getElementById("stat-pushes");
+  const statBest = document.getElementById("stat-best");
+  const winOverlay = document.getElementById("win-overlay");
+  const winSummary = document.getElementById("win-summary");
+
+  let progress = loadProgress();
+  let levelIndex = 0;
+  let level, player, boxes, moves, pushes, history, won;
+
+  function loadProgress() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    } catch (e) {
+      return {};
+    }
+  }
+  function saveProgress() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(progress)); } catch (e) { /* ignore */ }
+  }
+
+  function parseLevel(str) {
+    const rows = str.split("\n");
+    const width = Math.max(...rows.map(r => r.length));
+    const grid = rows.map(r => r.padEnd(width, " ").split(""));
+    const walls = new Set();
+    const targets = new Set();
+    const startBoxes = [];
+    let startPlayer = null;
+
+    grid.forEach((row, y) => row.forEach((c, x) => {
+      const key = x + "," + y;
+      if (c === "#") walls.add(key);
+      if (c === "." || c === "*" || c === "+") targets.add(key);
+      if (c === "$" || c === "*") startBoxes.push(key);
+      if (c === "@" || c === "+") startPlayer = key;
+    }));
+
+    return { width, height: grid.length, walls, targets, startBoxes, startPlayer };
+  }
+
+  function keyOf(x, y) { return x + "," + y; }
+
+  function loadLevel(index) {
+    levelIndex = index;
+    level = parseLevel(LEVELS[index]);
+    const [px, py] = level.startPlayer.split(",").map(Number);
+    player = { x: px, y: py };
+    boxes = level.startBoxes.map(k => {
+      const [x, y] = k.split(",").map(Number);
+      return { x, y };
+    });
+    moves = 0;
+    pushes = 0;
+    history = [];
+    won = false;
+    winOverlay.classList.remove("show");
+    renderLevelList();
+    renderStats();
+    renderBoard(true);
+  }
+
+  function renderLevelList() {
+    levelListEl.innerHTML = "";
+    LEVELS.forEach((_, i) => {
+      const btn = document.createElement("button");
+      btn.className = "level-btn" + (i === levelIndex ? " active" : "") + (progress[i] ? " done" : "");
+      btn.textContent = i + 1;
+      btn.title = progress[i] ? `Best: ${progress[i].bestMoves} moves` : "";
+      btn.addEventListener("click", () => loadLevel(i));
+      levelListEl.appendChild(btn);
+    });
+  }
+
+  function renderStats() {
+    statMoves.textContent = moves;
+    statPushes.textContent = pushes;
+    const best = progress[levelIndex];
+    statBest.textContent = best ? best.bestMoves + " moves" : "—";
+  }
+
+  function renderBoard(rebuild) {
+    const boxSet = new Set(boxes.map(b => keyOf(b.x, b.y)));
+
+    if (rebuild) {
+      boardEl.innerHTML = "";
+      boardEl.style.gridTemplateColumns = `repeat(${level.width}, var(--cell))`;
+      boardEl.style.gridTemplateRows = `repeat(${level.height}, var(--cell))`;
+      const cellPx = Math.max(28, Math.min(48, Math.floor(560 / Math.max(level.width, level.height))));
+      boardEl.style.setProperty("--cell", cellPx + "px");
+
+      for (let y = 0; y < level.height; y++) {
+        for (let x = 0; x < level.width; x++) {
+          const div = document.createElement("div");
+          div.dataset.x = x;
+          div.dataset.y = y;
+          const key = keyOf(x, y);
+          div.className = "cell " + (level.walls.has(key) ? "wall" : level.targets.has(key) ? "target" : "floor");
+          boardEl.appendChild(div);
+        }
+      }
+    }
+
+    boardEl.querySelectorAll(".cell").forEach(cell => {
+      cell.querySelectorAll(".box, .player").forEach(el => el.remove());
+      const x = Number(cell.dataset.x), y = Number(cell.dataset.y);
+      const key = keyOf(x, y);
+      if (boxSet.has(key)) {
+        const box = document.createElement("div");
+        box.className = "box" + (level.targets.has(key) ? " on-target" : "");
+        cell.appendChild(box);
+      }
+      if (player.x === x && player.y === y) {
+        const p = document.createElement("div");
+        p.className = "player";
+        cell.appendChild(p);
+      }
+    });
+  }
+
+  function isWall(x, y) { return level.walls.has(keyOf(x, y)); }
+  function boxAt(x, y) { return boxes.find(b => b.x === x && b.y === y); }
+
+  function attemptMove(dir) {
+    if (won) return;
+    const d = DIRS[dir];
+    if (!d) return;
+    const [dx, dy] = d;
+    const nx = player.x + dx, ny = player.y + dy;
+    if (isWall(nx, ny)) return;
+
+    const box = boxAt(nx, ny);
+    let pushed = false;
+    if (box) {
+      const bx = nx + dx, by = ny + dy;
+      if (isWall(bx, by) || boxAt(bx, by)) return;
+      pushed = true;
+    }
+
+    history.push({
+      player: { ...player },
+      boxes: boxes.map(b => ({ ...b })),
+      moves, pushes
+    });
+
+    player = { x: nx, y: ny };
+    if (pushed) {
+      box.x = nx + dx;
+      box.y = ny + dy;
+      pushes++;
+    }
+    moves++;
+
+    renderStats();
+    renderBoard(false);
+    checkWin();
+  }
+
+  function undo() {
+    if (!history.length || won) return;
+    const prev = history.pop();
+    player = prev.player;
+    boxes = prev.boxes;
+    moves = prev.moves;
+    pushes = prev.pushes;
+    renderStats();
+    renderBoard(false);
+  }
+
+  function restart() {
+    loadLevel(levelIndex);
+  }
+
+  function checkWin() {
+    const done = boxes.every(b => level.targets.has(keyOf(b.x, b.y)));
+    if (!done) return;
+    won = true;
+
+    const prevBest = progress[levelIndex];
+    if (!prevBest || moves < prevBest.bestMoves) {
+      progress[levelIndex] = { bestMoves: moves, bestPushes: pushes };
+      saveProgress();
+    }
+    renderLevelList();
+    renderStats();
+
+    winSummary.textContent = `Solved in ${moves} move${moves === 1 ? "" : "s"} (${pushes} push${pushes === 1 ? "" : "es"}).`;
+    winOverlay.classList.add("show");
+  }
+
+  function goNext() {
+    loadLevel((levelIndex + 1) % LEVELS.length);
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "u" || e.key === "z" || e.key === "U" || e.key === "Z") { undo(); return; }
+    if (e.key === "r" || e.key === "R") { restart(); return; }
+    if (DIRS[e.key]) {
+      e.preventDefault();
+      attemptMove(e.key);
+    }
+  });
+
+  document.querySelectorAll(".dpad button[data-dir]").forEach(btn => {
+    btn.addEventListener("click", () => attemptMove(btn.dataset.dir));
+  });
+
+  document.getElementById("btn-undo").addEventListener("click", undo);
+  document.getElementById("btn-restart").addEventListener("click", restart);
+  document.getElementById("btn-next").addEventListener("click", goNext);
+  document.getElementById("win-retry").addEventListener("click", restart);
+  document.getElementById("win-next").addEventListener("click", goNext);
+
+  let touchStart = null;
+  boardEl.addEventListener("touchstart", (e) => {
+    const t = e.touches[0];
+    touchStart = { x: t.clientX, y: t.clientY };
+  }, { passive: true });
+  boardEl.addEventListener("touchend", (e) => {
+    if (!touchStart) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.x, dy = t.clientY - touchStart.y;
+    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
+    if (Math.abs(dx) > Math.abs(dy)) attemptMove(dx > 0 ? "right" : "left");
+    else attemptMove(dy > 0 ? "down" : "up");
+    touchStart = null;
+  }, { passive: true });
+
+  loadLevel(0);
+})();
+</script>
+
+</body>
+</html>
