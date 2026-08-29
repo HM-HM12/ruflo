@@ -1,0 +1,25 @@
+# Risk management configuration — loaded by src/risk/risk_manager.py.
+# These are DEFAULTS; override via environment variables of the same name
+# (upper-cased) for deployment-specific tuning. Nothing here can be
+# overridden by the AI decision engine — the risk manager has final say.
+
+max_risk_per_trade_pct: 1.0        # % of account equity risked per trade
+max_daily_loss_pct: 3.0            # daily kill switch trips at this drawdown
+max_trades_per_day: 10
+max_simultaneous_positions: 5
+max_exposure_per_asset_pct: 20.0   # % of equity in a single symbol
+consecutive_loss_circuit_breaker: 3 # trips a cooldown after N losses in a row
+circuit_breaker_cooldown_minutes: 60
+
+require_stop_loss: true            # orders without a stop-loss are rejected
+default_risk_reward_ratio: 2.0     # take-profit distance = R:R * stop distance
+trailing_stop_enabled: true
+trailing_stop_activation_pct: 1.0  # activate trailing stop after +1% favorable move
+trailing_stop_distance_atr_multiple: 1.5
+
+position_sizing_method: "fixed_fractional"  # fixed_fractional | volatility_adjusted
+
+# Hard behavioral constraints (never negotiable, enforced in code):
+#   - position size is NEVER increased to recover a loss (no martingale)
+#   - no revenge trading: a symbol that just stopped out is cooled down
+symbol_cooldown_minutes_after_loss: 30

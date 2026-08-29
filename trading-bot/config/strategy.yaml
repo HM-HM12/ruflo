@@ -1,0 +1,48 @@
+# Strategy / AI decision engine configuration — loaded by
+# src/ai/decision_engine.py. Weights must sum to 1.0 (validated at load time).
+
+scoring_weights:
+  news_sentiment: 0.25
+  technical_setup: 0.25
+  momentum: 0.15
+  volume: 0.10
+  market_trend: 0.10
+  volatility: 0.10
+  risk_reward: 0.05
+
+min_confidence_threshold: 65.0   # 0-100; below this the engine outputs NO_TRADE
+
+timeframes: ["1m", "5m", "15m", "1h", "4h"]
+primary_timeframe: "15m"          # timeframe the entry signal is generated on
+
+universe:
+  stocks: ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA"]
+  etfs: ["SPY", "QQQ"]
+  crypto: ["BTC/USDT", "ETH/USDT"]
+
+indicators:
+  ema_periods: [9, 21, 50, 200]
+  rsi_period: 14
+  rsi_overbought: 70
+  rsi_oversold: 30
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+  atr_period: 14
+  bollinger_period: 20
+  bollinger_std_dev: 2.0
+  relative_volume_lookback: 20
+  support_resistance_lookback: 50
+  breakout_lookback: 20
+
+news:
+  sentiment_impact_min_confidence: 0.5   # ignore low-confidence single headlines
+  duplicate_window_minutes: 30           # collapse repeated coverage of same event
+  max_single_headline_score_contribution: 0.6  # a single headline can't dominate
+
+regime:
+  high_volatility_atr_percentile: 80
+  low_volatility_atr_percentile: 20
+  trend_lookback: 50
+  reduce_trading_regimes: ["high_volatility", "news_event"]
+  halt_trading_regimes: []   # regimes where the bot stops opening new trades entirely
