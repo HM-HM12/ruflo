@@ -12,6 +12,7 @@ import pandas as pd
 from src.core.domain import Quote
 from src.core.enums import Timeframe
 from src.core.exceptions import DataProviderError
+from src.core.time_utils import to_utc_timestamp
 from src.data.market_data_provider import MarketDataProvider
 
 _TIMEFRAME_MAP = {
@@ -69,7 +70,7 @@ class AlpacaProvider(MarketDataProvider):
         df = df.rename(columns={"open": "open", "high": "high", "low": "low", "close": "close", "volume": "volume"})
         df = df[["open", "high", "low", "close", "volume"]]
         # Enforce no-look-ahead even if the vendor API is lenient about `end`.
-        return df[df.index <= pd.Timestamp(end, tz="UTC")]
+        return df[df.index <= to_utc_timestamp(end)]
 
     async def get_latest_quote(self, symbol: str) -> Quote:
         from alpaca.data.requests import StockLatestQuoteRequest

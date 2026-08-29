@@ -17,8 +17,8 @@ from src.alerts.alert_manager import AlertManager
 from src.alerts.channels import ConsoleChannel, EmailChannel, SlackChannel, TelegramChannel
 from src.api.routers import dashboard, killswitch, news, positions, risk, trades
 from src.api.websocket import manager as ws_manager, websocket_endpoint
-from src.core.enums import AssetClass, Timeframe
-from src.data.providers.yfinance_provider import YFinanceProvider
+from src.core.enums import Timeframe
+from src.data.provider_factory import build_market_data_provider, resolve_trading_universe
 from src.monitoring.logger import configure_logging
 from src.orchestrator import TradingBot
 
@@ -59,18 +59,17 @@ async def lifespan(app: FastAPI):
     strategy_cfg = load_strategy_config()
     risk_cfg = load_risk_config()
 
-    market_data = YFinanceProvider()
+    market_data = build_market_data_provider(settings)
     alert_manager = build_alert_manager(settings)
 
     bot = TradingBot(settings, strategy_cfg, risk_cfg, market_data, news_data=None, alert_manager=alert_manager)
     app.state.bot = bot
     app.state.settings = settings
 
-    universe = strategy_cfg["universe"]
-    symbols = universe.get("stocks", []) + universe.get("etfs", [])
+    symbols, asset_class = resolve_trading_universe(settings, strategy_cfg)
     timeframe = Timeframe(strategy_cfg.get("primary_timeframe", "15m"))
 
-    bot_task = asyncio.create_task(bot.run_forever(symbols, AssetClass.STOCK, timeframe))
+    bot_task = asyncio.create_task(bot.run_forever(symbols, asset_class, timeframe))
     broadcast_task = asyncio.create_task(_broadcast_loop(bot))
 
     logger.info("Trading bot API started (mode=%s)", "paper" if bot.is_paper else "live")

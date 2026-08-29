@@ -13,6 +13,7 @@ import pandas as pd
 from src.core.domain import Quote
 from src.core.enums import Timeframe
 from src.core.exceptions import DataProviderError
+from src.core.time_utils import to_utc_timestamp
 from src.data.market_data_provider import MarketDataProvider
 
 _TIMEFRAME_MAP = {
@@ -70,7 +71,7 @@ class CcxtProvider(MarketDataProvider):
         df = df.set_index("ts").sort_index()
         df = df[~df.index.duplicated(keep="last")]
         # Strict no-look-ahead: never return bars past `end`.
-        return df[df.index <= pd.Timestamp(end, tz="UTC")]
+        return df[df.index <= to_utc_timestamp(end)]
 
     async def get_latest_quote(self, symbol: str) -> Quote:
         loop = asyncio.get_event_loop()

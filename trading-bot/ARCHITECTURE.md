@@ -143,6 +143,22 @@ if **all four** of these hold:
 Missing any gate silently and safely falls back to the paper broker, with a
 loud warning log — the system never fails open into live trading.
 
+### MT5: a second broker platform, with account-type verification instead of a stub
+
+`BROKER_PLATFORM=mt5` routes through `src/execution/mt5_broker.py` instead
+of the paper/live-stub pair above. MT5 has no separate paper API — a demo
+account and a real account are reached through the identical
+`MetaTrader5` calls, differing only in which account the locally-running
+terminal is logged into. So `Mt5Broker.__init__` asks the terminal what
+kind of account is actually connected (`account_info().trade_mode`) and
+raises `LiveTradingNotConfirmed` if it doesn't match what `BROKER_MODE`
+expects — a real account with `BROKER_MODE=paper` refuses just as hard as a
+demo account with `BROKER_MODE=live`. `build_broker()` catches that and
+falls back to the synthetic `PaperBroker`, never to MT5 in an unverified
+state. See "Trading gold (or anything else) on MetaTrader 5" in
+`SETUP.md` for the operational side of this (Windows-only, terminal must be
+running locally, symbol names are broker-specific).
+
 ## Backtesting correctness
 
 `src/backtesting/backtest_engine.py` enforces no-look-ahead at three levels:

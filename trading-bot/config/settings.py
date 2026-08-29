@@ -35,6 +35,20 @@ class Settings(BaseSettings):
     live_trading_confirmed: bool = False
     live_trading_confirmation_phrase: str = ""  # must equal "I UNDERSTAND THE RISK"
 
+    # Which broker/platform actually places orders. "simulated" (default)
+    # uses the fully synthetic PaperBroker and never touches a real
+    # platform. "mt5" connects to a real MetaTrader 5 terminal — even in
+    # BROKER_MODE=paper, this means real market data and a real MT5 demo
+    # account's execution engine, not our own simulator. See
+    # src/execution/mt5_broker.py for the account-type safety check that
+    # runs on every connection regardless of what this flag says.
+    broker_platform: Literal["simulated", "mt5"] = "simulated"
+
+    # Which provider feeds market data for the live/paper trading loop.
+    # Independent of broker_platform — e.g. you can backtest against
+    # yfinance while trading live through MT5.
+    data_provider: Literal["yfinance", "alpaca", "ccxt", "mt5"] = "yfinance"
+
     # --- Database ---------------------------------------------------
     database_url: str = "postgresql+asyncpg://trading:trading@localhost:5432/trading_bot"
     redis_url: str = "redis://localhost:6379/0"
@@ -48,6 +62,24 @@ class Settings(BaseSettings):
     binance_secret_key: str = ""
 
     polygon_api_key: str = ""
+
+    # --- MetaTrader 5 -------------------------------------------------------
+    # The official MetaTrader5 Python package only works on Windows (it talks
+    # to a locally-running MT5 terminal over IPC, not a remote HTTP API) —
+    # this process must run on the same machine as the terminal, which must
+    # already be installed. mt5_path is optional; leave blank to use
+    # whichever terminal MetaTrader5.initialize() finds by default.
+    mt5_login: int = 0
+    mt5_password: str = ""
+    mt5_server: str = ""
+    mt5_path: str = ""
+    # Gold's symbol name is broker-specific — check your MT5 "Market Watch"
+    # panel. Common variants: XAUUSD, XAUUSD.a, XAUUSDm, GOLD.
+    mt5_symbol: str = "XAUUSD"
+    mt5_lot_step: float = 0.01
+    mt5_min_lot: float = 0.01
+    mt5_max_lot: float = 100.0
+    mt5_deviation_points: int = 20  # max acceptable slippage, in broker points
 
     # --- News provider credentials -----------------------------------
     newsapi_key: str = ""

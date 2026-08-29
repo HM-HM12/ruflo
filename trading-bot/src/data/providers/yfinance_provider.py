@@ -14,6 +14,7 @@ import pandas as pd
 from src.core.domain import Quote
 from src.core.enums import Timeframe
 from src.core.exceptions import DataProviderError
+from src.core.time_utils import to_utc_timestamp
 from src.data.market_data_provider import MarketDataProvider
 
 _TIMEFRAME_TO_INTERVAL = {
@@ -55,7 +56,7 @@ class YFinanceProvider(MarketDataProvider):
         )[["open", "high", "low", "close", "volume"]]
         df.index = pd.to_datetime(df.index, utc=True)
         # Strict no-look-ahead guarantee: truncate anything beyond `end`.
-        df = df[df.index <= pd.Timestamp(end, tz="UTC")]
+        df = df[df.index <= to_utc_timestamp(end)]
 
         if timeframe == Timeframe.H4:
             df = df.resample("4h").agg(

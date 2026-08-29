@@ -20,10 +20,14 @@ logger = logging.getLogger(__name__)
 
 
 def build_broker(settings: Settings) -> BrokerInterface:
-    """The single decision point for paper vs. live. Every one of the four
-    gates documented in live_broker_stub.py must hold, or we silently and
-    safely fall back to paper trading with a loud log warning — trading
-    never fails open into a live broker."""
+    """The single decision point for paper vs. live, and for which platform
+    (simulated vs. MT5) actually places orders. Every one of the four gates
+    documented in live_broker_stub.py must hold before real money is ever at
+    risk, or we silently and safely fall back to paper trading with a loud
+    log warning — trading never fails open into a live broker."""
+    if settings.broker_platform == "mt5":
+        return _build_mt5_broker(settings)
+
     if settings.broker_mode == "live":
         if not settings.live_trading_fully_authorized:
             logger.warning(
@@ -43,6 +47,41 @@ def build_broker(settings: Settings) -> BrokerInterface:
             )
             return PaperBroker()
     return PaperBroker()
+
+
+def _build_mt5_broker(settings: Settings) -> BrokerInterface:
+    """MT5 has no separate paper API — demo vs. real is purely a property
+    of which account the terminal is logged into. Mt5Broker verifies that
+    live in its constructor and raises if it doesn't match what
+    BROKER_MODE/the confirmation gate expect (see mt5_broker.py's
+    docstring). If that verification fails for any reason, we fall back to
+    the fully synthetic PaperBroker rather than ever risking an
+    unauthorized real-money order."""
+    from src.data.providers.mt5_connection import Mt5Credentials
+    from src.execution.mt5_broker import Mt5Broker
+
+    expect_live = settings.broker_mode == "live"
+    if expect_live and not settings.live_trading_fully_authorized:
+        logger.warning(
+            "broker_platform=mt5 with BROKER_MODE=live was requested but live "
+            "trading is not fully authorized. Falling back to the simulated "
+            "PaperBroker (not MT5) entirely."
+        )
+        return PaperBroker()
+
+    credentials = Mt5Credentials(
+        login=settings.mt5_login, password=settings.mt5_password,
+        server=settings.mt5_server, path=settings.mt5_path,
+    )
+    try:
+        return Mt5Broker(
+            credentials=credentials, symbol=settings.mt5_symbol, expect_live_account=expect_live,
+            lot_step=settings.mt5_lot_step, min_lot=settings.mt5_min_lot, max_lot=settings.mt5_max_lot,
+            deviation_points=settings.mt5_deviation_points,
+        )
+    except (BrokerConnectionError, LiveTradingNotConfirmed) as exc:
+        logger.error("Could not establish an authorized MT5 connection (%s). Falling back to PAPER trading (simulated, not MT5).", exc)
+        return PaperBroker()
 
 
 class ExecutionEngine:

@@ -17,6 +17,7 @@ class AssetClass(str, Enum):
     STOCK = "stock"
     ETF = "etf"
     CRYPTO = "crypto"
+    COMMODITY = "commodity"  # e.g. XAUUSD (gold) traded as a CFD via MT5
 
 
 class OrderSide(str, Enum):

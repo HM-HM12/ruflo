@@ -19,6 +19,11 @@ universe:
   stocks: ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA"]
   etfs: ["SPY", "QQQ"]
   crypto: ["BTC/USDT", "ETH/USDT"]
+  # Used only for reference/documentation — when DATA_PROVIDER=mt5 or
+  # BROKER_PLATFORM=mt5, the actual traded symbol is MT5_SYMBOL (see
+  # config/settings.py and env.example), not this list. Gold's exact
+  # symbol name is broker-specific (XAUUSD, XAUUSD.a, GOLD, ...).
+  commodities: ["XAUUSD"]
 
 indicators:
   ema_periods: [9, 21, 50, 200]
